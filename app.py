@@ -22,12 +22,15 @@ if "pdf_chunks" not in st.session_state:
 # Load model
 @st.cache_resource
 def get_model():
+    api_key = st.secrets["OPENAI_API_KEY"]
+    base_url = st.secrets["OPENAI_BASE_URL"]
+
     return ChatOpenAI(
         model="qwen/qwq-32b:free",
-        api_key = st.secrets["OPENAI_API_KEY"],
-        base_url = st.secrets["OPENAI_BASE_URL"],
         temperature=0.0,
         streaming=True,
+        api_key=api_key,
+        base_url=base_url,
     )
 
 model = get_model()
