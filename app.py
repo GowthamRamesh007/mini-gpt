@@ -24,8 +24,8 @@ if "pdf_chunks" not in st.session_state:
 def get_model():
     return ChatOpenAI(
         model="qwen/qwq-32b:free",
-        api_key=os.getenv("OPENAI_API_KEY"),
-        base_url=os.getenv("OPENAI_BASE_URL"),
+        api_key = st.secrets["OPENAI_API_KEY"],
+        base_url = st.secrets["OPENAI_BASE_URL"],
         temperature=0.0,
         streaming=True,
     )
