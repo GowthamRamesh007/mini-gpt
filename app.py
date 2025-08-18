@@ -22,6 +22,8 @@ if "task" not in st.session_state:
     st.session_state.task = None
 if "length" not in st.session_state:
     st.session_state.length = None
+if "generated_questions" not in st.session_state:
+    st.session_state.generated_questions = None
 
 # Load model
 @st.cache_resource
@@ -63,12 +65,24 @@ with col_pdf:
         if st.button("Generate Questions"):
             st.session_state.task = "questions"
             st.session_state.length = None
+            relevant = " ".join(st.session_state.pdf_chunks[:5])
+
+            prompt = f"Generate 8-10 meaningful exam-style questions based on the following PDF content:\n\n{relevant}"
+            with st.spinner("🔎 Generating questions..."):
+                response = model.invoke([HumanMessage(content=prompt)])
+                st.session_state.generated_questions = response.content
+
         if st.button("Summarize PDF"):
             st.session_state.task = "summary"
             st.session_state.length = None
+            st.session_state.generated_questions = None
 
-        # Choose answer length if a task is chosen
-        if st.session_state.task:
+        # Show generated questions
+        if st.session_state.task == "questions" and st.session_state.generated_questions:
+            st.markdown("### 📌 Generated Questions")
+            st.markdown(st.session_state.generated_questions)
+
+            # Now show answer length options
             st.markdown("### ⏱ Select Answer Length")
             if st.button("2m (short ~50 words)"):
                 st.session_state.length = "short"
@@ -104,10 +118,11 @@ with col_chat:
                 # Decide prompt
                 if st.session_state.task and st.session_state.pdf_chunks:
                     relevant = " ".join(st.session_state.pdf_chunks[:5])  # take first few chunks
-                    if st.session_state.task == "questions":
-                        task_prompt = "Generate possible questions from this PDF content."
-                    else:
+
+                    if st.session_state.task == "summary":
                         task_prompt = "Summarize this PDF content."
+                    elif st.session_state.task == "questions" and st.session_state.length:
+                        task_prompt = "Answer this question based on the PDF."
 
                     # Add word length condition
                     if st.session_state.length == "short":
