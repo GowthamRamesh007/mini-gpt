@@ -10,8 +10,8 @@ import os
 # Load env vars
 load_dotenv()
 
-st.set_page_config(page_title="PDF Q&A Chatbot", layout="wide")
-st.title("📄 PDF Q&A Chatbot (Qwen)")
+st.set_page_config(page_title="Liberal-GPT", layout="wide")
+st.title("Liberal-GPT for Engineering students")
 
 # Session state
 if "messages" not in st.session_state:
@@ -58,7 +58,7 @@ with col_pdf:
         splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
         st.session_state.pdf_chunks = splitter.split_text(text)
 
-        st.success(f"✅ PDF split into {len(st.session_state.pdf_chunks)} parts")
+        st.success(f"✅ PDF has been read successfully.")
 
         # Choose task
         st.markdown("### 📝 Select Task")
