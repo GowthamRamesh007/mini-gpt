@@ -10,7 +10,7 @@ import os
 # Load env vars
 load_dotenv()
 
-st.set_page_config(page_title="PDF Q&A Chatbot", layout="centered")
+st.set_page_config(page_title="PDF Q&A Chatbot", layout="wide")
 st.title("📄 PDF Q&A Chatbot (Qwen)")
 
 # Session state
@@ -18,6 +18,10 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 if "pdf_chunks" not in st.session_state:
     st.session_state.pdf_chunks = []
+if "task" not in st.session_state:
+    st.session_state.task = None
+if "length" not in st.session_state:
+    st.session_state.length = None
 
 # Load model
 @st.cache_resource
@@ -35,70 +39,102 @@ def get_model():
 
 model = get_model()
 
-# --- SPACE + CENTERED USER INPUT ---
-st.markdown("### 💬 Ask your question")
+# Layout split: left (chat) | right (PDF uploader + tasks)
+col_chat, col_pdf = st.columns([3, 1])
 
-col1, col2, col3 = st.columns([1, 2, 1])  # center alignment
-with col2:
-    user_input = st.text_input("Type your question 👇", placeholder="Ask something about the PDF...")
+# --- PDF UPLOADER & TASKS (RIGHT SIDE) ---
+with col_pdf:
+    st.markdown("### 📂 Upload PDF")
+    uploaded_file = st.file_uploader("Upload your PDF", type=["pdf"])
+
+    if uploaded_file:
+        text = ""
+        reader = PyPDF2.PdfReader(uploaded_file)
+        for page in reader.pages:
+            text += page.extract_text() or ""
+
+        splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+        st.session_state.pdf_chunks = splitter.split_text(text)
+
+        st.success(f"✅ PDF split into {len(st.session_state.pdf_chunks)} parts")
+
+        # Choose task
+        st.markdown("### 📝 Select Task")
+        if st.button("Generate Questions"):
+            st.session_state.task = "questions"
+            st.session_state.length = None
+        if st.button("Summarize PDF"):
+            st.session_state.task = "summary"
+            st.session_state.length = None
+
+        # Choose answer length if a task is chosen
+        if st.session_state.task:
+            st.markdown("### ⏱ Select Answer Length")
+            if st.button("2m (short ~50 words)"):
+                st.session_state.length = "short"
+            if st.button("13m (medium ~130 words)"):
+                st.session_state.length = "medium"
+            if st.button("15m (long ~300 words)"):
+                st.session_state.length = "long"
+
+# --- CHAT AREA (LEFT SIDE) ---
+with col_chat:
+    st.markdown("### 💬 Chat with Qwen")
+
+    # Show history
+    for msg in st.session_state.messages:
+        role = "user" if isinstance(msg, HumanMessage) else "assistant"
+        with st.chat_message(role):
+            st.markdown(msg.content)
+
+    # Input box
+    user_input = st.text_input("Type your question 👇", placeholder="Ask something about the PDF or general...")
     ask_button = st.button("Ask")
 
-# --- SHOW CHAT HISTORY ---
-for msg in st.session_state.messages:
-    role = "user" if isinstance(msg, HumanMessage) else "assistant"
-    with st.chat_message(role):
-        st.markdown(msg.content)
+    if ask_button and user_input:
+        st.session_state.messages.append(HumanMessage(content=user_input))
+        with st.chat_message("user"):
+            st.markdown(user_input)
 
-# --- PROCESS USER INPUT ---
-if ask_button and user_input:
-    st.session_state.messages.append(HumanMessage(content=user_input))
-    with st.chat_message("user"):
-        st.markdown(user_input)
+        with st.chat_message("assistant"):
+            response_placeholder = st.empty()
+            raw_output = ""
 
-    with st.chat_message("assistant"):
-        response_placeholder = st.empty()
-        raw_output = ""
+            try:
+                # Decide prompt
+                if st.session_state.task and st.session_state.pdf_chunks:
+                    relevant = " ".join(st.session_state.pdf_chunks[:5])  # take first few chunks
+                    if st.session_state.task == "questions":
+                        task_prompt = "Generate possible questions from this PDF content."
+                    else:
+                        task_prompt = "Summarize this PDF content."
 
-        try:
-            # Choose relevant chunk
-            if st.session_state.pdf_chunks:
-                relevant = max(
-                    st.session_state.pdf_chunks,
-                    key=lambda chunk: sum(word.lower() in chunk.lower() for word in user_input.split())
-                )
-                prompt = f"Answer using this PDF content:\n\n{relevant}\n\nQuestion: {user_input}"
-            else:
-                prompt = user_input
+                    # Add word length condition
+                    if st.session_state.length == "short":
+                        length_prompt = "Write the answer in about 50 words (3 lines)."
+                    elif st.session_state.length == "medium":
+                        length_prompt = "Write the answer in about 130 words (10 lines)."
+                    elif st.session_state.length == "long":
+                        length_prompt = "Write the answer in about 300 words (20 lines)."
+                    else:
+                        length_prompt = ""
 
-            st.session_state.messages.append(HumanMessage(content=prompt))
+                    prompt = f"{task_prompt}\n\nPDF Content:\n{relevant}\n\n{length_prompt}\n\nQuestion: {user_input}"
+                else:
+                    prompt = user_input  # general questions
 
-            # Stream + clean response
-            for chunk in model.stream(st.session_state.messages):
-                raw_output += chunk.content or ""
-                # 🔑 Remove <think> tags inline
-                cleaned = re.sub(r"<think>.*?</think>", "", raw_output, flags=re.DOTALL).strip()
-                response_placeholder.markdown(cleaned + "▌")
+                st.session_state.messages.append(HumanMessage(content=prompt))
 
-            final_output = re.sub(r"<think>.*?</think>", "", raw_output, flags=re.DOTALL).strip()
-            response_placeholder.markdown(final_output)
+                # Stream + clean response
+                for chunk in model.stream(st.session_state.messages):
+                    raw_output += chunk.content or ""
+                    cleaned = re.sub(r"<think>.*?</think>", "", raw_output, flags=re.DOTALL).strip()
+                    response_placeholder.markdown(cleaned + "▌")
 
-        except Exception as e:
-            st.error(f"Error: {e}")
+                final_output = re.sub(r"<think>.*?</think>", "", raw_output, flags=re.DOTALL).strip()
+                response_placeholder.markdown(final_output)
 
-        st.session_state.messages.append(AIMessage(content=final_output))
+            except Exception as e:
+                st.error(f"Error: {e}")
 
-# --- PDF UPLOADER BELOW INPUT ---
-st.markdown("---")
-st.markdown("### 📂 Upload a PDF file")
-uploaded_file = st.file_uploader("Upload your PDF", type=["pdf"])
-
-if uploaded_file:
-    text = ""
-    reader = PyPDF2.PdfReader(uploaded_file)
-    for page in reader.pages:
-        text += page.extract_text() or ""
-
-    splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-    st.session_state.pdf_chunks = splitter.split_text(text)
-
-    st.success(f"✅ PDF split into {len(st.session_state.pdf_chunks)} parts")
+            st.session_state.messages.append(AIMessage(content=final_output))
