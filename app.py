@@ -70,9 +70,7 @@ with col_pdf:
             prompt = f"Generate 8-10 meaningful exam-style questions based on the following PDF content:\n\n{relevant}"
             with st.spinner("🔎 Generating questions..."):
                 response = model.invoke([HumanMessage(content=prompt)])
-                # ✅ Clean <think> from model response
-                clean_resp = re.sub(r"<think>.*?</think>", "", response.content, flags=re.DOTALL).strip()
-                st.session_state.generated_questions = clean_resp
+                st.session_state.generated_questions = response.content
 
         if st.button("Summarize PDF"):
             st.session_state.task = "summary"
@@ -86,11 +84,13 @@ with col_display:
         st.markdown(st.session_state.generated_questions)
 
         st.markdown("### ⏱ Select Answer Length")
-        if st.button("2m (short ~50 words)"):
+        st.markdown("*This will generate for 2m, 13m, 15m*")
+
+        if st.button("2m"):
             st.session_state.length = "short"
-        if st.button("13m (medium ~130 words)"):
+        if st.button("13m"):
             st.session_state.length = "medium"
-        if st.button("15m (long ~300 words)"):
+        if st.button("15m"):
             st.session_state.length = "long"
 
     elif st.session_state.task == "summary":
@@ -144,8 +144,10 @@ if user_input:
             else:
                 prompt = user_input  # general questions
 
+            st.session_state.messages.append(HumanMessage(content=prompt))
+
             # Stream + clean response
-            for chunk in model.stream([HumanMessage(content=prompt)]):  # ✅ Only send clean prompt
+            for chunk in model.stream(st.session_state.messages):
                 raw_output += chunk.content or ""
                 cleaned = re.sub(r"<think>.*?</think>", "", raw_output, flags=re.DOTALL).strip()
                 response_placeholder.markdown(cleaned + "▌")
