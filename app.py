@@ -62,37 +62,39 @@ with col_right:
 
         if task == "Generate Questions":
             if st.button("Generate"):
-                with st.chat_message("assistant"):
-                    response_placeholder = st.empty()
-                    raw_output = ""
+                with col_left:
+                    with st.chat_message("assistant"):
+                        response_placeholder = st.empty()
+                        raw_output = ""
 
-                    prompt = "Generate 8–10 exam-style questions based on this PDF:\n\n" + text
-                    st.session_state.messages.append(HumanMessage(content=prompt))
+                        prompt = "Generate 8–10 exam-style questions based on this PDF:\n\n" + text
+                        st.session_state.messages.append(HumanMessage(content=prompt))
 
-                    for chunk in model.stream(st.session_state.messages):
-                        raw_output += chunk.content or ""
-                        response_placeholder.markdown(clean_response(raw_output) + "▌")
+                        for chunk in model.stream(st.session_state.messages):
+                            raw_output += chunk.content or ""
+                            response_placeholder.markdown(clean_response(raw_output) + "▌")
 
-                    final_output = clean_response(raw_output)
-                    response_placeholder.markdown(final_output)
-                    st.session_state.messages.append(AIMessage(content=final_output))
+                        final_output = clean_response(raw_output)
+                        response_placeholder.markdown(final_output)
+                        st.session_state.messages.append(AIMessage(content=final_output))
 
         elif task == "Summarize PDF":
             if st.button("Summarize"):
-                with st.chat_message("assistant"):
-                    response_placeholder = st.empty()
-                    raw_output = ""
+                with col_left:
+                    with st.chat_message("assistant"):
+                        response_placeholder = st.empty()
+                        raw_output = ""
 
-                    prompt = "Summarize this PDF in simple language:\n\n" + text
-                    st.session_state.messages.append(HumanMessage(content=prompt))
+                        prompt = "Summarize this PDF in simple language:\n\n" + text
+                        st.session_state.messages.append(HumanMessage(content=prompt))
 
-                    for chunk in model.stream(st.session_state.messages):
-                        raw_output += chunk.content or ""
-                        response_placeholder.markdown(clean_response(raw_output) + "▌")
+                        for chunk in model.stream(st.session_state.messages):
+                            raw_output += chunk.content or ""
+                            response_placeholder.markdown(clean_response(raw_output) + "▌")
 
-                    final_output = clean_response(raw_output)
-                    response_placeholder.markdown(final_output)
-                    st.session_state.messages.append(AIMessage(content=final_output))
+                        final_output = clean_response(raw_output)
+                        response_placeholder.markdown(final_output)
+                        st.session_state.messages.append(AIMessage(content=final_output))
 
 # --- USER INPUT AT BOTTOM ---
 st.markdown("---")
