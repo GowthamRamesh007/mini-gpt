@@ -41,10 +41,10 @@ def get_model():
 
 model = get_model()
 
-# Layout: left (PDF uploader + tasks) | right (generated content)
+# Layout: left (PDF uploader + tasks + options) | right (content display)
 col_pdf, col_display = st.columns([1, 3])
 
-# --- PDF UPLOADER (LEFT) ---
+# --- PDF UPLOADER + TASKS (LEFT) ---
 with col_pdf:
     st.markdown("### 📂 Upload PDF")
     uploaded_file = st.file_uploader("Upload your PDF", type=["pdf"])
@@ -77,9 +77,24 @@ with col_pdf:
             st.session_state.length = None
             st.session_state.generated_questions = None
 
-# --- DISPLAY AREA (MIDDLE/RIGHT) ---
+        # --- Answer Length Options (PLACED HERE so it's below the task buttons) ---
+        if st.session_state.task in ["questions", "summary"]:
+            st.markdown("### ⏱ Select Answer Length")
+            st.markdown("*This will generate for 2m, 13m, 15m*")
+
+            col_len1, col_len2, col_len3 = st.columns(3)
+            with col_len1:
+                if st.button("2m"):
+                    st.session_state.length = "short"
+            with col_len2:
+                if st.button("13m"):
+                    st.session_state.length = "medium"
+            with col_len3:
+                if st.button("15m"):
+                    st.session_state.length = "long"
+
+# --- DISPLAY AREA (RIGHT) ---
 with col_display:
-    # Show questions if generated
     if st.session_state.task == "questions" and st.session_state.generated_questions:
         st.markdown("## 📌 Generated Questions")
         st.markdown(st.session_state.generated_questions)
@@ -89,22 +104,6 @@ with col_display:
 
     else:
         st.markdown("## 💬 Ask anything about the PDF or general questions")
-
-    # --- Answer Length Options (moved here to right side) ---
-    if st.session_state.task in ["questions", "summary"]:
-        st.markdown("### ⏱ Select Answer Length")
-        st.markdown("*This will generate for 2m, 13m, 15m*")
-
-        col_len1, col_len2, col_len3 = st.columns(3)
-        with col_len1:
-            if st.button("2m"):
-                st.session_state.length = "short"
-        with col_len2:
-            if st.button("13m"):
-                st.session_state.length = "medium"
-        with col_len3:
-            if st.button("15m"):
-                st.session_state.length = "long"
 
     # Display chat history
     for msg in st.session_state.messages:
