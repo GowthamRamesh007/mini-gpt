@@ -43,10 +43,17 @@ with col2:
     user_input = st.text_input("Type your question 👇", placeholder="Ask something about the PDF...")
     ask_button = st.button("Ask")
 
+# --- SHOW CHAT HISTORY ---
+for msg in st.session_state.messages:
+    role = "user" if isinstance(msg, HumanMessage) else "assistant"
+    with st.chat_message(role):
+        st.markdown(msg.content)
+
 # --- PROCESS USER INPUT ---
 if ask_button and user_input:
-    st.chat_message("user").write(user_input)
     st.session_state.messages.append(HumanMessage(content=user_input))
+    with st.chat_message("user"):
+        st.markdown(user_input)
 
     with st.chat_message("assistant"):
         response_placeholder = st.empty()
@@ -68,6 +75,7 @@ if ask_button and user_input:
             # Stream + clean response
             for chunk in model.stream(st.session_state.messages):
                 raw_output += chunk.content or ""
+                # 🔑 Remove <think> tags inline
                 cleaned = re.sub(r"<think>.*?</think>", "", raw_output, flags=re.DOTALL).strip()
                 response_placeholder.markdown(cleaned + "▌")
 
